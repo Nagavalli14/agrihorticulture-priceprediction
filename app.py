@@ -1,65 +1,46 @@
 import streamlit as st
+import pandas as pd
 
-# ---------------- PAGE CONFIG ----------------
-st.set_page_config(
-    page_title="Agri Commodity Price Prediction",
-    page_icon="🌾",
-    layout="centered"
-)
+# -----------------------------
+# Load dataset
+# -----------------------------
+df = pd.read_csv("cleaned_agri_prices.csv")
 
-# ---------------- TITLE ----------------
+# Normalize column names (safety)
+df.columns = df.columns.str.lower()
+
+# -----------------------------
+# App UI
+# -----------------------------
 st.title("🌾 Agri Commodity Price Prediction System")
-st.markdown(
-    "### Decision Support Tool for Government Buffer Stock Management"
-)
+st.write("Decision Support Tool for Government Buffer Stock Management")
 
-st.divider()
+# Commodity selection
+commodity_list = sorted(df['commodity'].unique())
+commodity = st.selectbox("Select Commodity", commodity_list)
 
-# ---------------- COMMODITY DATA (FROM DATASET INSIGHTS) ----------------
-commodity_data = {
-    "Onion": {"avg_price": 3000},
-    "Tomato": {"avg_price": 2500},
-    "Potato": {"avg_price": 2200},
-    "Pulses (Gram/Tur/Urad/Moong)": {"avg_price": 6000}
-}
+# Filter data for selected commodity
+commodity_data = df[df['commodity'] == commodity]
 
-# ---------------- USER INPUTS ----------------
-commodity = st.selectbox(
-    "Select Commodity",
-    list(commodity_data.keys())
-)
+# Calculate average modal price
+average_price = commodity_data['modal_price'].mean()
 
-average_price = commodity_data[commodity]["avg_price"]
-
+# Price input
 price = st.number_input(
-    f"Enter Predicted Modal Price for {commodity} (₹/quintal)",
-    min_value=0,
-    step=100
+    "Enter Predicted Modal Price (₹ / quintal)",
+    min_value=0.0,
+    step=10.0
 )
 
-st.divider()
+# -----------------------------
+# Decision Logic
+# -----------------------------
+if st.button("Get Buffer Stock Decision"):
+    st.write(f"📊 Historical Average Price: ₹{round(average_price,2)}")
 
-# ---------------- DECISION LOGIC ----------------
-if st.button("📊 Get Buffer Stock Decision"):
-    st.subheader("📌 Decision Result")
-
-    threshold = average_price * 1.2
-
-    if price > threshold:
-        st.success("✅ Recommendation: RELEASE BUFFER STOCK")
-        st.write(
-            f"The predicted price is significantly higher than the historical average "
-            f"(₹{average_price}). Releasing buffer stock can help control inflation."
-        )
+    if price > average_price * 1.2:
+        st.success("✅ Release Buffer Stock (Price too high)")
+    elif price < average_price * 0.8:
+        st.warning("🟡 Procure & Store Buffer Stock (Price too low)")
     else:
-        st.info("ℹ️ Recommendation: HOLD BUFFER STOCK")
-        st.write(
-            f"The predicted price is within the normal range. "
-            f"No immediate buffer stock release is required."
-        )
-
-# ---------------- FOOTER ----------------
-st.divider()
-st.caption(
-    "🔍 Built using Machine Learning & Streamlit | Hackathon Prototype"
-)
+        st.info("ℹ️ Hold Buffer Stock (Price Stable)")
